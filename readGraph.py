@@ -1,4 +1,5 @@
 import networkx as nx
+import parameters as par
 
 
 def getedge(s: str):
@@ -48,6 +49,6 @@ def readGraph():
         s = file.readline()
         while s:
             edge = getedge(s)
-            G.add_edge(edge[0], edge[1], weight=edge[2])
+            G.add_edge(edge[0], edge[1], distance=edge[2], pheromone=par.MIN_PHER)
             s = file.readline()
     return G
