@@ -1,20 +1,14 @@
-from readGraph import readGraph
 import networkx as nx
+from threading import Thread
+import numpy as np
+from readGraph import readGraph
 import Ant
 import parameters as par
-from threading import Thread
 
 ants = []
 
 
 def run(ant: Ant):
-    print('start ' + str(ant.ant_id))
-    x = 1
-    for i in range(1000):
-        x *= 2
-    print('finish ' + str(ant.ant_id))
-    return
-    #TODO test this
     n_steps = 0
     while ant.is_returning != 1:
         ant.step()
@@ -24,7 +18,8 @@ def run(ant: Ant):
 
 
 def init(startNode, endNode):
-    Ant.graph.update(readGraph())
+    graph = Ant.graph
+    graph.update(readGraph())
     for k in range(par.NUM_OF_ANTS):
         ants.append(Ant.Ant(startNode, endNode))
     for i in range(par.N_ITER):
@@ -36,12 +31,31 @@ def init(startNode, endNode):
         for thread in threads:
             thread.join()
         print('################ ALL THREADS JOINED ################')
-        #then update pheromones, update best route, reset ants
+        for u, v, p in graph.edges.data('pheromone'):
+            graph[u][v]['pheromone'] = max(par.MIN_PHER, p*par.DECAY)
         for ant in ants:
-            #update pheromones, update best route
+            #update best route
+            if graph.graph['shortest'] > ant.path_length:
+                graph.graph['shortest'] = ant.path_length
+                Ant.all_time_shortest_path = np.copy(ant.vi_nodes)
+            #update pheromones
+            prev = -1
+            for v in ant.vi_nodes:
+                if prev == -1:
+                    prev = v
+                    continue
+                print('prev: ' + str(prev) + ' v: ' + str(v))
+                graph[v][prev]['pheromone'] = min(par.MAX_PHER, graph[v][prev]['pheromone'] +
+                                                      par.PHER_CONSTANT / ant.path_length)
+                prev = v
+            #reset ant
             ant.reset()
+    print('path length: ' + str(graph.graph['shortest']))
+    print('path: ' + str(Ant.all_time_shortest_path))
 
     #now for n of iterations run ants asynchroneously until they find their solutions, update the graph and go again
-    #TODO modify Ant to work that way instead of the old pheromone update system
-    #TODO implement async running of ants
+    #DONE-ish? modify Ant to work that way instead of the old pheromone update system
+    #p much DONE implement async running of ants
+    #TODO test this mess
+    #TODO optimize parameters and find the right amounts for pheromones
     #TODO implement Yen's algorithm
