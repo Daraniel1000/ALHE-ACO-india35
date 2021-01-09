@@ -4,7 +4,7 @@ import logging
 import configargparse
 import networkx as nx
 
-from antcolony.optimization import AntColonyPathFinder, MultiPathFinder
+from antcolony.optimization import AntColonyPathFinder, MultiPathFinder, DijkstraPathFinder
 from antcolony.parsing import parse_sndlib_weighted
 
 
@@ -58,17 +58,20 @@ if __name__ == '__main__':
     args = parse_args()
     config_logging()
     logger = logging.getLogger("antcolony")
-
     weight_label = 'weight'
-
-    graph = get_graph(args.graph, weight_label)
-    optimizer = AntColonyPathFinder(args.n_ants, args.n_iter, args.max_steps,
-                                    args.alpha, args.beta, args.ro, args.q)
-
     start, end, n = args.start_node, args.end_node, args.n
 
-    logger.info("Starting search")
-    paths = MultiPathFinder(optimizer, n).find(graph, start, end)
-    logger.info(f"Shortest paths according to ant colony: {paths}")
+    graph = get_graph(args.graph, weight_label)
+
+    optimizers = {
+        "ant colony": AntColonyPathFinder(args.n_ants, args.n_iter, args.max_steps,
+                                          args.alpha, args.beta, args.ro, args.q),
+        "Dijkstra": DijkstraPathFinder()
+    }
+
+    for name, optimizer in optimizers.items():
+        logger.info(f"Starting search using {name}")
+        paths = MultiPathFinder(optimizer, n).find(graph, start, end)
+        logger.info(f"Shortest paths according to {name}: {paths}")
 
     logger.info(f"Shortest paths according to NetworkX: {nx_shortest_paths(graph, start, end, n, weight_label)}")
