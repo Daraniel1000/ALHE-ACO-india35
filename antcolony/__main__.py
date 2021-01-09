@@ -2,9 +2,8 @@ import importlib.resources as pkg_resources
 import logging
 
 import configargparse
-import networkx as nx
 
-from antcolony.optimization import AntColonyPathFinder, MultiPathFinder, DijkstraPathFinder
+from antcolony.optimization import AntColonyPathFinder, DijkstraPathFinder, NxMultiPathFinder, SimpleMultiPathFinder
 from antcolony.parsing import parse_sndlib_weighted
 
 
@@ -35,7 +34,7 @@ def parse_args():
                                help='beta coefficient')
         argparser.add_argument('--ro', type=float, default=0.6,
                                help='pheromone evaporation coefficient')
-        argparser.add_argument('--q', type=float, default=10,
+        argparser.add_argument('--q', type=float, default=10.0,
                                help='q coefficient')
     return argparser.parse_args()
 
@@ -49,11 +48,6 @@ def get_graph(path, weight_label='weight'):
         return parse_sndlib_weighted(file.read(), weight_label)
 
 
-def nx_shortest_paths(graph, start_node, end_node, k, weight_label='weight'):
-    return [path for _, path in
-            zip(range(k), nx.shortest_simple_paths(graph, start_node, end_node, weight=weight_label))]
-
-
 if __name__ == '__main__':
     args = parse_args()
     config_logging()
@@ -65,13 +59,13 @@ if __name__ == '__main__':
 
     optimizers = {
         "ant colony": AntColonyPathFinder(args.n_ants, args.n_iter, args.max_steps,
-                                          args.alpha, args.beta, args.ro, args.q),
-        "Dijkstra": DijkstraPathFinder()
+                                          args.alpha, args.beta, args.ro, args.q, weight_label),
+        "Dijkstra": DijkstraPathFinder(weight_label)
     }
 
     for name, optimizer in optimizers.items():
         logger.info(f"Starting search using {name}")
-        paths = MultiPathFinder(optimizer, n).find(graph, start, end)
+        paths = SimpleMultiPathFinder(optimizer).find(graph, start, end, n)
         logger.info(f"Shortest paths according to {name}: {paths}")
 
-    logger.info(f"Shortest paths according to NetworkX: {nx_shortest_paths(graph, start, end, n, weight_label)}")
+    logger.info(f"Shortest paths according to NetworkX: {NxMultiPathFinder(weight_label).find(graph, start, end, n)}")
