@@ -7,6 +7,23 @@ import numpy as np
 
 
 class PathFinder(ABC):
+    class Path:
+        def __init__(self, path, graph, weight_label='weight'):
+            self.graph = graph
+            self.path = path
+            self.len = None
+            self.weight_label = weight_label
+            if not path:
+                self.len = float('inf')
+
+        def edges(self):
+            return zip(self.path, self.path[1:])
+
+        def length(self):
+            if self.len is None:
+                self.len = sum(self.graph[u][v][self.weight_label] for u, v in self.edges())
+            return self.len
+
     @abstractmethod
     def find(self, graph, start_node, end_node):
         return NotImplemented
@@ -14,16 +31,19 @@ class PathFinder(ABC):
 
 class DijkstraPathFinder(PathFinder):
     """Shortest path finder using NetworkX builtin Dijkstra algorithm"""
+    def __init__(self, weight_label='weight'):
+        self.weight_label = weight_label
 
-    def find(self, graph, start_node, end_node, weight_label='pheromone'):
-        return nx.shortest_path(graph, start_node, end_node, weight=weight_label, method='dijkstra')
+    def find(self, graph, start_node, end_node):
+        return PathFinder.Path(nx.shortest_path(graph, start_node, end_node, weight=self.weight_label,
+                                                method='dijkstra'), graph, self.weight_label)
 
 
 class AntColonyPathFinder(PathFinder):
     """Shortest path finder using ant colony optimization"""
 
     class Ant(PathFinder):
-        def __init__(self, max_steps, alpha, beta, pheromone_label='pheromone', weight_label='pheromone'):
+        def __init__(self, max_steps, alpha, beta, pheromone_label='pheromone', weight_label='weight'):
             super().__init__()
             self.max_steps = max_steps
             self.alpha = alpha
@@ -51,8 +71,8 @@ class AntColonyPathFinder(PathFinder):
                 current_node = self._pick_next(graph, current_node)
                 path.append(current_node)
                 if current_node == end_node:
-                    return path
-            return []  # end node not reached, return empty path
+                    return PathFinder.Path(path, graph, self.weight_label)
+            return PathFinder.Path([], graph, self.weight_label)  # end node not reached, return empty path
 
     def __init__(self, n_ants, n_iter, max_steps, alpha, beta, ro, q):
         super().__init__()
@@ -74,8 +94,8 @@ class AntColonyPathFinder(PathFinder):
 
     def _leave_pheromones(self, graph, paths):
         for path in paths:
-            for a, b in zip(path, path[1:]):
-                graph[a][b][self.pheromone_label] = graph[a][b][self.pheromone_label] + self.q / len(path)
+            for a, b in path.edges():
+                graph[a][b][self.pheromone_label] = graph[a][b][self.pheromone_label] + self.q / path.length()
 
     @staticmethod
     def _let_out_ants(ants, graph, start_node, end_node):
@@ -92,8 +112,8 @@ class AntColonyPathFinder(PathFinder):
             paths = self._let_out_ants(ants, graph, start_node, end_node)
             self._decay_pheromones(graph)
             self._leave_pheromones(graph, paths)
-            iteration_shortest_path = min(paths, key=len)
-            if not shortest_path or len(iteration_shortest_path) < len(shortest_path):
+            iteration_shortest_path = min(paths, key=lambda x: x.length())
+            if not shortest_path or iteration_shortest_path.length() < shortest_path.length():
                 shortest_path = iteration_shortest_path
         return shortest_path
 
@@ -110,7 +130,7 @@ class MultiPathFinder:
     def _edge_tuples(paths):
         if not paths:
             return [[]]
-        edge_paths = [set(frozenset(x) for x in zip(path, path[1:])) for path in paths]
+        edge_paths = [set(frozenset(x) for x in path.edges()) for path in paths]
         edge_tuples_sets = [x for x in itertools.product(*edge_paths) if len(set(x)) == len(paths)]
         return [[tuple(edge) for edge in pair] for pair in edge_tuples_sets]
 
@@ -130,5 +150,5 @@ class MultiPathFinder:
             non_empty_paths = [path for path in candidate_paths if path]
             if not non_empty_paths:  # can't search further
                 return best_paths
-            best_paths.append(min(non_empty_paths, key=len))
+            best_paths.append(min(non_empty_paths, key=lambda x: x.length()))
         return best_paths
