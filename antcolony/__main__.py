@@ -22,11 +22,11 @@ def parse_args():
                                help='how many paths to find')
         argparser.add_argument('--config', is_config_file=True,
                                help='config file path')
-        argparser.add_argument('--n_ants', type=int, default=50,
+        argparser.add_argument('--n_ants', type=int, default=30,
                                help='number of ants')
         argparser.add_argument('--n_iter', type=int, default=10,
                                help='number of iterations')
-        argparser.add_argument('--max_steps', type=int, default=1000,
+        argparser.add_argument('--max_steps', type=int, default=50,
                                help='max steps for single ant in one iteration')
         argparser.add_argument('--alpha', type=float, default=0.5,
                                help='alpha coefficient')
