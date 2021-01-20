@@ -101,7 +101,7 @@ class AntColonyPathFinder(PathFinder):
 
     def _decay_pheromones(self, graph):
         for a, b in graph.edges():
-            graph[a][b][self.pheromone_label] = (1 - self.ro) * graph[a][b][self.pheromone_label]
+            graph[a][b][self.pheromone_label] = max(0, (1 - self.ro) * graph[a][b][self.pheromone_label])
 
     def _leave_pheromones(self, graph, paths):
         for path in paths:
